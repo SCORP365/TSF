@@ -32,6 +32,14 @@ sudo bash bootstrap/run.sh
 
 Для получения архива на рабочей станции перед офлайн-подписанием используйте `python -m bootstrap.download_archive <full-commit-sha> <new-output-path>`. Эта команда проходит GitHub Device Flow (QR при наличии `qrencode`, иначе одноразовый код), скачивает тот же точный архив, который будет проверять установщик, и не сохраняет токен.
 
+Для подписи архива существующей офлайн-парой Ed25519 используйте:
+
+```sh
+bash bootstrap/sign-manifest.sh <archive.tar.gz> <full-commit-sha> <version> <private-key.pem> <public-key.pem> <new-output-directory>
+```
+
+Помощник проверяет fingerprint закреплённого публичного ключа и соответствие приватной пары. Приватный ключ остаётся на рабочей станции и не передаётся в GitHub или на VPS. Публиковать можно только `manifest.json` и `manifest.sig`.
+
 Скрипт `bootstrap/run.sh` дополнительно проверяет fingerprint закреплённого ключа и устанавливает только bootstrap-зависимости (`python3`, `qrencode`, OpenSSL, сертификаты). Для продолжения прерванной установки той же подписанной версии используйте `sudo bash bootstrap/run.sh --resume`. Сам приватный `installer/install.sh` теперь оркестрирует домен, preflight, зависимости, портал, HTTPS, RustDesk и ISPmanager. Однако ветка `release-manifests` и подписанный релиз ещё не опубликованы, а установка на чистой Ubuntu 24.04 с systemd ещё не проверена. До этих двух контрольных точек запускать на рабочем VPS нельзя.
 
 Локальные тесты: `python3 -m unittest discover -s tests -v`. GitHub Actions запускает этот набор при изменениях тестовой ветки.
