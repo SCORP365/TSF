@@ -92,7 +92,7 @@ def _show_qr(uri: str) -> None:
 def begin_device_authorization() -> DeviceAuthorization:
     response = _post_form(
         DEVICE_CODE_URL,
-        {"client_id": CLIENT_ID, "scope": "offline_access"},
+        {"client_id": CLIENT_ID},
     )
     if response.get("error"):
         if response["error"] == "device_flow_disabled":
