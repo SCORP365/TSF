@@ -1,9 +1,9 @@
 # TSF Connect — единый установщик
 
-На чистом VPS Ubuntu 24.04 amd64 выполните одну команду от root:
+На VPS с Ubuntu 24.04 LTS amd64 выполните одну команду от root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/main/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
+curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/3f058eb94e35b405a61d5b59fbdc7dcd31e3be97/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
 ```
 
 Продолжение прерванной установки:
@@ -12,15 +12,11 @@ curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/main/install.sh -o /ro
 bash /root/tsf-connect-install.sh --resume
 ```
 
-Скрипт самостоятельно:
+Bootstrap:
 - устанавливает минимальные инструменты загрузки;
 - выполняет GitHub Device Flow (QR-код и одноразовый код), без PAT;
-- получает файлы приватного репозитория `SCORP365/TSF-Connect` и проверяет SHA каждого Git blob;
-- запускает основной серверный установщик из временного каталога;
-- после завершения удаляет временные исходники.
+- получает исходники приватного репозитория `SCORP365/TSF-Connect`;
+- проверяет SHA-1 каждого Git blob относительно дерева Git;
+- запускает основной серверный установщик из временного каталога и удаляет временные файлы.
 
-Основная ветка серверного установщика: `test/no-ed25519`.
-
-Репозиторий `TSF` содержит только публичный bootstrap. Все рабочие исходники и резервные копии остаются в приватном `TSF-Connect`.
-
-Установщик не должен удалять чужие сайты, почту, DNS, firewall, ISPmanager или системные службы. Все операции с обнаруженными старыми компонентами TSF Connect/RustDesk должны быть показаны оператору и подтверждены отдельно.
+Исходники остаются в приватном репозитории. Публичный репозиторий содержит только bootstrap.
