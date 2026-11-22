@@ -106,6 +106,7 @@ def extract_verified_archive(
             # GitHub archives contain one common top-level directory.
             top_levels = set()
             safe_members = []
+            total_unpacked = 0
             for member in members:
                 name = member.name
                 path = PurePosixPath(name)
@@ -116,6 +117,9 @@ def extract_verified_archive(
                     raise SourceDownloadError("The archive contains a link or special file.")
                 if member.size < 0 or member.size > 64 * 1024 * 1024:
                     raise SourceDownloadError("The archive contains an oversized file.")
+                total_unpacked += member.size
+                if total_unpacked > 256 * 1024 * 1024:
+                    raise SourceDownloadError("The unpacked source exceeds the 256 MiB safety limit.")
                 safe_members.append((member, path))
 
             if len(top_levels) != 1:
