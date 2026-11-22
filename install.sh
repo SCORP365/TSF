@@ -77,10 +77,10 @@ def request(url, method="GET", data=None, token=None, accept="application/vnd.gi
         raise RuntimeError("GitHub вернул некорректный ответ.") from exc
 
 def authorize():
-    device = request(DEVICE_CODE_URL, "POST", {"client_id": CLIENT_ID},
+    device = request(DEVICE_CODE_URL, "POST", {"client_id": CLIENT_ID, "scope": "repo"},
                      accept="application/json")
     if device.get("error"):
-        raise RuntimeError("Не удалось начать GitHub Device Flow: " + str(device.get("error_description") or device["error"]))
+        raise RuntimeError("GitHub Device Flow недоступен для OAuth App. Владелец приложения должен включить Enable Device Flow в Settings → Developer settings → OAuth Apps. Ответ GitHub: " + str(device.get("error_description") or device["error"]))
     code, user_code = device.get("device_code"), device.get("user_code")
     verify = device.get("verification_uri")
     if not all(isinstance(x, str) and x for x in (code, user_code)) or verify != DEVICE_URL:
