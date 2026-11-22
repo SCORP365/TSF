@@ -33,11 +33,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="verify and extract the signed source without running its installer",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue a previously interrupted TSF Connect installation",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.retrieve_only and args.resume:
+        print("ERROR: --retrieve-only and --resume cannot be used together.", file=sys.stderr)
+        return 2
     if os.geteuid() != 0:
         print("Запустите bootstrap от root: sudo python3 -m bootstrap.cli", file=sys.stderr)
         return 2
@@ -73,8 +81,11 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         print("3/3. Запуск проверенного установщика TSF Connect.")
+        installer_command = ["bash", str(installer)]
+        if args.resume:
+            installer_command.append("--resume")
         result = subprocess.run(
-            ["bash", str(installer)],
+            installer_command,
             cwd=source,
             stdin=None,
             check=False,
