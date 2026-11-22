@@ -30,6 +30,22 @@ class DeviceFlowTests(unittest.TestCase):
             with self.assertRaises(device_flow.DeviceFlowError):
                 device_flow.begin_device_authorization()
 
+    def test_authorize_falls_back_to_manual_code_when_qr_is_unavailable(self):
+        authorization = device_flow.DeviceAuthorization(
+            "opaque-device-code", "ABCD-EFGH",
+            "https://github.com/login/device", 900, 1
+        )
+        with patch.object(device_flow, "begin_device_authorization", return_value=authorization), \
+             patch.object(device_flow, "_show_qr", side_effect=device_flow.DeviceFlowError("no qrencode")), \
+             patch.object(device_flow, "wait_for_access_token", return_value="memory-only-token") as wait, \
+             patch("builtins.print") as output:
+            token = device_flow.authorize()
+        self.assertEqual(token, "memory-only-token")
+        wait.assert_called_once_with(authorization)
+        printed = " ".join(str(call.args) for call in output.call_args_list)
+        self.assertIn("ABCD-EFGH", printed)
+        self.assertIn("https://github.com/login/device", printed)
+
     def test_wait_returns_bearer_token_without_logging_it(self):
         with patch.object(
             device_flow,
