@@ -24,7 +24,7 @@ class BootstrapCliTests(unittest.TestCase):
         return (
             patch.object(cli, "STAGING_ROOT", self.stage),
             patch.object(cli, "PUBLIC_KEY", self.key),
-            patch.object(cli.os, "geteuid", return_value=0),
+            patch.object(cli.os, "geteuid", side_effect=[0, self.stage.stat().st_uid]),
             patch.object(cli, "retrieve_verified_source", return_value=self.source),
         )
 
