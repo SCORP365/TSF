@@ -1,44 +1,30 @@
 #!/usr/bin/env python3
-"""Verified TSF Connect bootstrap entry point.
-
-The bootstrap authenticates with GitHub Device Flow, verifies the signed
-manifest and exact source archive, then invokes only installer/install.sh
-from the verified private source tree. The GitHub token never leaves this
-process and is never passed to the installer.
-"""
+"""TSF Connect bootstrap: GitHub Device Flow and pinned private source."""
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
-from bootstrap.installer_flow import retrieve_verified_source
+from bootstrap.installer_flow import SOURCE_COMMIT, retrieve_source
 from bootstrap.private_source import SourceDownloadError
 
-BOOTSTRAP_DIR = Path(__file__).resolve().parent
-PUBLIC_KEY = BOOTSTRAP_DIR / "keys" / "tsf-release-ed25519-public.pem"
 STAGING_ROOT = Path("/var/tmp/tsf-connect-bootstrap")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="tsf-connect-bootstrap",
-        description="Securely retrieve and launch the signed TSF Connect installer.",
+        description="Retrieve and launch the pinned TSF Connect installer from private GitHub.",
     )
-    parser.add_argument(
-        "--retrieve-only",
-        action="store_true",
-        help="verify and extract the signed source without running its installer",
-    )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="continue a previously interrupted TSF Connect installation",
-    )
+    parser.add_argument("--retrieve-only", action="store_true",
+                        help="download and extract the pinned source without running its installer")
+    parser.add_argument("--resume", action="store_true",
+                        help="continue a previously interrupted TSF Connect installation")
     return parser.parse_args(argv)
 
 
@@ -50,10 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     if os.geteuid() != 0:
         print("Запустите bootstrap от root: sudo python3 -m bootstrap.cli", file=sys.stderr)
         return 2
-    if not PUBLIC_KEY.is_file() or PUBLIC_KEY.is_symlink():
-        print("ERROR: закреплённый публичный ключ подписи отсутствует.", file=sys.stderr)
-        return 2
 
+    work_dir = None
     try:
         STAGING_ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
         if STAGING_ROOT.is_symlink() or not STAGING_ROOT.is_dir():
@@ -65,32 +49,29 @@ def main(argv: list[str] | None = None) -> int:
         os.chmod(work_dir, 0o700)
 
         print("1/3. Авторизация GitHub через QR-код Device Flow.")
-        source = retrieve_verified_source(work_dir, PUBLIC_KEY)
+        source, digest = retrieve_source(work_dir)
         installer = source / "installer" / "install.sh"
 
-        print("2/3. Подпись манифеста и SHA256 архива проверены.")
-        print(f"Проверенный исходный код: {source}")
+        print("2/3. Получен исходный код из приватного репозитория.")
+        print(f"Commit: {SOURCE_COMMIT}")
+        print(f"SHA-256 архива: {digest}")
+        print(f"Исходный код: {source}")
 
         if args.retrieve_only:
             print("3/3. Режим проверки: установщик не запускался.")
             return 0
-
         if not installer.is_file() or installer.is_symlink():
             raise SourceDownloadError(
-                "Подписанный исходный код пока не содержит installer/install.sh. "
-                "Установка безопасно остановлена; ни один файл не запускался."
+                "В закреплённом коммите отсутствует installer/install.sh. "
+                "Установка остановлена; ни один файл не запускался."
             )
 
-        print("3/3. Запуск проверенного установщика TSF Connect.")
-        installer_command = ["bash", str(installer)]
+        print("3/3. Запуск единого установщика TSF Connect.")
+        command = ["bash", str(installer)]
         if args.resume:
-            installer_command.append("--resume")
+            command.append("--resume")
         result = subprocess.run(
-            installer_command,
-            cwd=source,
-            stdin=None,
-            check=False,
-            timeout=None,
+            command, cwd=source, stdin=None, check=False, timeout=None,
             env={
                 "PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"),
                 "HOME": "/root",
@@ -101,11 +82,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         if result.returncode == 0:
             shutil.rmtree(work_dir, ignore_errors=True)
+            work_dir = None
             print("Временные исходники удалены; установленная копия находится в /opt/tsf-connect.")
         return result.returncode
     except (SourceDownloadError, OSError, subprocess.SubprocessError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
+    finally:
+        if work_dir is not None and not args.retrieve_only:
+            shutil.rmtree(work_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
