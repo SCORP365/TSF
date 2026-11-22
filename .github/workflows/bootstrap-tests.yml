@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test/bootstrap-qr
+      - test/no-ed25519
   pull_request:
     branches:
       - test/bootstrap-qr
