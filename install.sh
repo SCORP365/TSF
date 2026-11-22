@@ -191,8 +191,11 @@ PY
 echo
 echo "Запускается основной установщик TSF Connect."
 export TSF_BOOTSTRAP_SOURCE="$WORK/source"
-if [[ "${1:-}" == "--resume" ]]; then
+if [[ "${1:-}" == "--resume" && -d /opt/tsf-connect && -f /opt/tsf-connect/.tsf-source-fingerprint ]]; then
   bash "$WORK/source/installer/install.sh" --resume
 else
+  if [[ "${1:-}" == "--resume" ]]; then
+    echo "Исходники ещё не были размещены; установщик безопасно продолжит как первичный запуск."
+  fi
   bash "$WORK/source/installer/install.sh"
 fi
