@@ -119,6 +119,9 @@ def extract_source_archive(archive: bytes, destination: Path) -> Path:
                     output.write(source.read(member.size))
                 target.chmod(0o600)
         return destination
+    except tarfile.TarError:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise SourceDownloadError("The downloaded source archive is damaged or invalid.") from None
     except Exception:
         shutil.rmtree(destination, ignore_errors=True)
         raise
