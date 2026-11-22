@@ -21,7 +21,16 @@
 
 Командная точка входа `python3 -m bootstrap.cli` связывает этапы: получает QR-авторизацию, проверяет подпись и архив, затем ищет только `installer/install.sh` внутри проверенного дерева. Если файла нет, установка завершается безопасно; обхода проверки или запуска из плавающей ветки нет. Режим `--retrieve-only` выполняет проверенное получение и извлечение без запуска установщика. Флаг `--resume` передаётся единому установщику для продолжения прерванной установки той же версии. Открытый ключ Ed25519 закреплён в `bootstrap/keys/tsf-release-ed25519-public.pem`; его SHA-256 fingerprint: `32dec00fc5c068ee7b2df2c07786c2698139c178b1b1c452a76d22d70066b9bf`. Ветка `release-manifests` и подписанный релиз ещё не опубликованы. Поэтому текущий код не является готовым установщиком и не должен использоваться на рабочем VPS.
 
-Скрипт `bootstrap/run.sh` проверяет fingerprint закреплённого ключа и устанавливает только bootstrap-зависимости (`python3`, `qrencode`, OpenSSL, сертификаты). После проверки исходного публичного checkout запускайте `sudo bash bootstrap/run.sh`; для продолжения прерванной установки — `sudo bash bootstrap/run.sh --resume`. Сам приватный `installer/install.sh` теперь оркестрирует домен, preflight, зависимости, портал, HTTPS, RustDesk и ISPmanager. Однако ветка `release-manifests` и подписанный релиз ещё не опубликованы, а установка на чистой Ubuntu 24.04 с systemd ещё не проверена. До этих двух контрольных точек запускать на рабочем VPS нельзя.
+Проверенный bootstrap commit для первого запуска: `68b4fb11fb3642bcf17ee710e470db15b0e8f2bc`. Получайте именно этот commit, а не плавающую ветку:
+
+```sh
+git clone --branch test/bootstrap-qr https://github.com/SCORP365/TSF.git /tmp/tsf-bootstrap
+cd /tmp/tsf-bootstrap
+git checkout 68b4fb11fb3642bcf17ee710e470db15b0e8f2bc
+sudo bash bootstrap/run.sh
+```
+
+Скрипт `bootstrap/run.sh` дополнительно проверяет fingerprint закреплённого ключа и устанавливает только bootstrap-зависимости (`python3`, `qrencode`, OpenSSL, сертификаты). Для продолжения прерванной установки той же подписанной версии используйте `sudo bash bootstrap/run.sh --resume`. Сам приватный `installer/install.sh` теперь оркестрирует домен, preflight, зависимости, портал, HTTPS, RustDesk и ISPmanager. Однако ветка `release-manifests` и подписанный релиз ещё не опубликованы, а установка на чистой Ubuntu 24.04 с systemd ещё не проверена. До этих двух контрольных точек запускать на рабочем VPS нельзя.
 
 Локальные тесты: `python3 -m unittest discover -s tests -v`. GitHub Actions запускает этот набор при изменениях тестовой ветки.
 
