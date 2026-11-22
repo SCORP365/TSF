@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         if STAGING_ROOT.is_symlink() or not STAGING_ROOT.is_dir():
             raise SourceDownloadError("Небезопасный каталог временных файлов bootstrap.")
         st = STAGING_ROOT.stat(follow_symlinks=False)
-        if st.st_uid != 0 or (st.st_mode & 0o077):
+        if st.st_uid != os.geteuid() or (st.st_mode & 0o077):
             raise SourceDownloadError("Каталог bootstrap должен принадлежать root и иметь права 0700.")
         work_dir = Path(tempfile.mkdtemp(prefix="release-", dir=STAGING_ROOT))
         os.chmod(work_dir, 0o700)
