@@ -191,4 +191,8 @@ PY
 echo
 echo "Запускается основной установщик TSF Connect."
 export TSF_BOOTSTRAP_SOURCE="$WORK/source"
-bash "$WORK/source/installer/install.sh" "${1:-}"
+if [[ "${1:-}" == "--resume" ]]; then
+  bash "$WORK/source/installer/install.sh" --resume
+else
+  bash "$WORK/source/installer/install.sh"
+fi
