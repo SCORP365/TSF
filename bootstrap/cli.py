@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import shutil
 from pathlib import Path
 
 from bootstrap.installer_flow import retrieve_verified_source
@@ -98,6 +99,9 @@ def main(argv: list[str] | None = None) -> int:
                 "TSF_BOOTSTRAP_SOURCE": str(source),
             },
         )
+        if result.returncode == 0:
+            shutil.rmtree(work_dir)
+            print("Временные исходники удалены; установленная копия находится в /opt/tsf-connect.")
         return result.returncode
     except (SourceDownloadError, OSError, subprocess.SubprocessError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
