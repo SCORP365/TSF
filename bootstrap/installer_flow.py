@@ -12,7 +12,7 @@ from bootstrap.private_source import (
 )
 
 # Update this value only after the matching private-repository commit has passed CI.
-SOURCE_COMMIT = "18148649e1bfa18ee0394112f6f23a3e1585a56d"
+SOURCE_COMMIT = "8e85f31b8d42fd6b75e73176bee512c12087b1a1"
 
 
 def retrieve_source(work_dir: Path) -> tuple[Path, str]:
