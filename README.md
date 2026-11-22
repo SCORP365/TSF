@@ -30,6 +30,8 @@ git checkout 68b4fb11fb3642bcf17ee710e470db15b0e8f2bc
 sudo bash bootstrap/run.sh
 ```
 
+Для получения архива на рабочей станции перед офлайн-подписанием используйте `python -m bootstrap.download_archive <full-commit-sha> <new-output-path>`. Эта команда проходит GitHub Device Flow (QR при наличии `qrencode`, иначе одноразовый код), скачивает тот же точный архив, который будет проверять установщик, и не сохраняет токен.
+
 Скрипт `bootstrap/run.sh` дополнительно проверяет fingerprint закреплённого ключа и устанавливает только bootstrap-зависимости (`python3`, `qrencode`, OpenSSL, сертификаты). Для продолжения прерванной установки той же подписанной версии используйте `sudo bash bootstrap/run.sh --resume`. Сам приватный `installer/install.sh` теперь оркестрирует домен, preflight, зависимости, портал, HTTPS, RustDesk и ISPmanager. Однако ветка `release-manifests` и подписанный релиз ещё не опубликованы, а установка на чистой Ubuntu 24.04 с systemd ещё не проверена. До этих двух контрольных точек запускать на рабочем VPS нельзя.
 
 Локальные тесты: `python3 -m unittest discover -s tests -v`. GitHub Actions запускает этот набор при изменениях тестовой ветки.
