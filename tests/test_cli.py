@@ -40,6 +40,20 @@ class BootstrapCliTests(unittest.TestCase):
             self.assertEqual(cli.main([]), 1)
             run.assert_not_called()
 
+    def test_resume_flag_is_forwarded_to_verified_installer(self):
+        installer = self.source / "installer" / "install.sh"
+        installer.parent.mkdir()
+        installer.write_text("#!/bin/bash\\nexit 0\\n", encoding="utf-8")
+        patches = self._patch_common()
+        with patches[0], patches[1], patches[2], patches[3], patch.object(
+            cli.subprocess, "run", return_value=type("Result", (), {"returncode": 0})()
+        ) as run:
+            self.assertEqual(cli.main(["--resume"]), 0)
+            self.assertEqual(run.call_args.args[0], ["bash", str(installer), "--resume"])
+
+    def test_retrieve_only_and_resume_are_mutually_exclusive(self):
+        self.assertEqual(cli.main(["--retrieve-only", "--resume"]), 2)
+
     def test_default_mode_runs_only_verified_installer(self):
         installer = self.source / "installer" / "install.sh"
         installer.parent.mkdir()
