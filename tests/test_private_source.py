@@ -42,6 +42,13 @@ class PrivateSourceTests(unittest.TestCase):
                 extract_source_archive(archive, destination)
             self.assertFalse(destination.exists())
 
+    def test_malformed_archive_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "source"
+            with self.assertRaises(SourceDownloadError):
+                extract_source_archive(b"not a tar archive", destination)
+            self.assertFalse(destination.exists())
+
     def test_links_rejected(self):
         buffer = io.BytesIO()
         with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
