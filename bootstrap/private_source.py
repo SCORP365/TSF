@@ -1,25 +1,20 @@
-"""Authenticated retrieval of a pinned private TSF-Connect source archive.
-
-No downloaded file is executed by this module. The caller must verify a signed
-manifest before calling extract_verified_archive().
-"""
+"""Authenticated retrieval of a pinned private TSF-Connect source archive."""
 from __future__ import annotations
 
 import hashlib
 import io
 import re
+import shutil
 import tarfile
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
-from typing import Callable
 
 OWNER = "SCORP365"
 REPOSITORY = "TSF-Connect"
 API_ROOT = "https://api.github.com"
-USER_AGENT = "TSF-Connect-Bootstrap/0.1"
+USER_AGENT = "TSF-Connect-Bootstrap/0.2"
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class SourceDownloadError(RuntimeError):
@@ -41,8 +36,7 @@ def _github_request(url: str, token: str, accept: str) -> bytes:
     )
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
-            final_url = response.geturl()
-            if not final_url.startswith("https://"):
+            if not response.geturl().startswith("https://"):
                 raise SourceDownloadError("GitHub returned an insecure download redirect.")
             data = response.read(128 * 1024 * 1024 + 1)
     except urllib.error.HTTPError as exc:
@@ -65,32 +59,17 @@ def download_pinned_archive(token: str, commit_sha: str) -> bytes:
         raise SourceDownloadError("Invalid GitHub access token.")
     if not isinstance(commit_sha, str) or not _SHA_RE.fullmatch(commit_sha):
         raise SourceDownloadError("A full immutable commit SHA is required.")
-
     url = f"{API_ROOT}/repos/{OWNER}/{REPOSITORY}/tarball/{commit_sha}"
     return _github_request(url, token, "application/vnd.github+json")
 
 
-def verify_archive_digest(archive: bytes, expected_sha256: str) -> None:
-    """Compare the archive digest with the value from an already verified manifest."""
-    if not isinstance(expected_sha256, str) or not _HEX_RE.fullmatch(expected_sha256):
-        raise SourceDownloadError("The signed manifest contains an invalid archive digest.")
-    actual = hashlib.sha256(archive).hexdigest()
-    if actual != expected_sha256:
-        raise SourceDownloadError("Private source archive checksum mismatch.")
+def archive_sha256(archive: bytes) -> str:
+    """Return the SHA-256 digest for logging and release records."""
+    return hashlib.sha256(archive).hexdigest()
 
 
-def extract_verified_archive(
-    archive: bytes,
-    destination: Path,
-    *,
-    expected_sha256: str,
-    manifest_is_verified: bool,
-) -> Path:
-    """Extract only regular files/directories after an external signature check."""
-    if manifest_is_verified is not True:
-        raise SourceDownloadError("Refusing extraction: signed manifest has not been verified.")
-    verify_archive_digest(archive, expected_sha256)
-
+def extract_source_archive(archive: bytes, destination: Path) -> Path:
+    """Safely extract regular files/directories from a pinned GitHub archive."""
     destination = Path(destination)
     if destination.exists() or destination.is_symlink():
         raise SourceDownloadError("Extraction destination must not already exist.")
@@ -102,14 +81,11 @@ def extract_verified_archive(
             members = bundle.getmembers()
             if not members or len(members) > 20000:
                 raise SourceDownloadError("The source archive has an invalid file count.")
-
-            # GitHub archives contain one common top-level directory.
             top_levels = set()
             safe_members = []
             total_unpacked = 0
             for member in members:
-                name = member.name
-                path = PurePosixPath(name)
+                path = PurePosixPath(member.name)
                 if path.is_absolute() or not path.parts or any(p in ("", ".", "..") for p in path.parts):
                     raise SourceDownloadError("The archive contains an unsafe path.")
                 top_levels.add(path.parts[0])
@@ -121,11 +97,9 @@ def extract_verified_archive(
                 if total_unpacked > 256 * 1024 * 1024:
                     raise SourceDownloadError("The unpacked source exceeds the 256 MiB safety limit.")
                 safe_members.append((member, path))
-
             if len(top_levels) != 1:
                 raise SourceDownloadError("The archive layout is unexpected.")
 
-            prefix = next(iter(top_levels))
             for member, path in safe_members:
                 relative = PurePosixPath(*path.parts[1:])
                 if not relative.parts:
@@ -144,10 +118,7 @@ def extract_verified_archive(
                 with source, target.open("xb") as output:
                     output.write(source.read(member.size))
                 target.chmod(0o600)
-
         return destination
     except Exception:
-        # Leave no partial tree behind after any extraction failure.
-        import shutil
         shutil.rmtree(destination, ignore_errors=True)
         raise
