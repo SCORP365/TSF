@@ -164,7 +164,10 @@ def wait_for_access_token(
 def authorize() -> str:
     authorization = begin_device_authorization()
     print("\nGitHub authorization for TSF Connect")
-    _show_qr(authorization.verification_uri)
+    try:
+        _show_qr(authorization.verification_uri)
+    except DeviceFlowError:
+        print("QR rendering is unavailable; use the verification URL and one-time code below.")
     print(f"\nOpen: {authorization.verification_uri}")
     print(f"One-time code: {authorization.user_code}")
     print("Approve access for the TSF Connect Installer application.")
