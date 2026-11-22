@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
             },
         )
         if result.returncode == 0:
-            shutil.rmtree(work_dir)
+            shutil.rmtree(work_dir, ignore_errors=True)
             print("Временные исходники удалены; установленная копия находится в /opt/tsf-connect.")
         return result.returncode
     except (SourceDownloadError, OSError, subprocess.SubprocessError) as exc:
