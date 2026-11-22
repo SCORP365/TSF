@@ -21,8 +21,10 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
-      - name: Validate bootstrap launcher
-        run: bash -n bootstrap/run.sh
+      - name: Validate bootstrap and offline signer launchers
+        run: |
+          bash -n bootstrap/run.sh
+          bash -n bootstrap/sign-manifest.sh
       - name: Compile bootstrap modules
         run: python -m compileall -q bootstrap
       - name: Check command-line entry points
@@ -31,3 +33,5 @@ jobs:
           python -m bootstrap.download_archive --help
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Test offline signer with disposable keys
+        run: bash tests/test_sign_manifest.sh
