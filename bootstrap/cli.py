@@ -49,7 +49,9 @@ def main(argv: list[str] | None = None) -> int:
         STAGING_ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
         if STAGING_ROOT.is_symlink() or not STAGING_ROOT.is_dir():
             raise SourceDownloadError("Небезопасный каталог временных файлов bootstrap.")
-        os.chmod(STAGING_ROOT, 0o700)
+        st = STAGING_ROOT.stat(follow_symlinks=False)
+        if st.st_uid != 0 or (st.st_mode & 0o077):
+            raise SourceDownloadError("Каталог bootstrap должен принадлежать root и иметь права 0700.")
         work_dir = Path(tempfile.mkdtemp(prefix="release-", dir=STAGING_ROOT))
         os.chmod(work_dir, 0o700)
 
@@ -77,7 +79,13 @@ def main(argv: list[str] | None = None) -> int:
             stdin=None,
             check=False,
             timeout=None,
-            env={**os.environ, "TSF_BOOTSTRAP_SOURCE": str(source)},
+            env={
+                "PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"),
+                "HOME": "/root",
+                "LANG": os.environ.get("LANG", "C.UTF-8"),
+                "LC_ALL": os.environ.get("LC_ALL", "C.UTF-8"),
+                "TSF_BOOTSTRAP_SOURCE": str(source),
+            },
         )
         return result.returncode
     except (SourceDownloadError, OSError, subprocess.SubprocessError) as exc:
