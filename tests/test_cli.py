@@ -14,6 +14,7 @@ class BootstrapCliTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.stage = self.root / "stage"
         self.stage.mkdir(mode=0o700)
+        self.stage.chmod(0o700)
         self.source = self.root / "source"
         self.source.mkdir(mode=0o700)
         self.key = self.root / "public.pem"
