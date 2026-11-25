@@ -64,14 +64,12 @@ for marker in \
   fi
 done
 
+# Always fetch the current verified branch head, including for partial
+# installations. Pinning a failed bootstrap commit here prevents fixes from
+# ever reaching the VPS and traps the installer in the same failing code.
 PINNED_COMMIT=""
 if (( RESUME_INSTALL )) && [[ ! -f /var/lib/tsf-connect-installer/complete ]]; then
-  if [[ -f /opt/tsf-connect/.tsf-bootstrap-commit && ! -L /opt/tsf-connect/.tsf-bootstrap-commit ]]; then
-    PINNED_COMMIT="$(cat /opt/tsf-connect/.tsf-bootstrap-commit)"
-    [[ "$PINNED_COMMIT" =~ ^[0-9a-f]{40}$ ]] ||
-      fail "Fingerprint bootstrap commit в незавершённой установке повреждён."
-    echo "Найдена незавершённая установка; продолжение будет выполнено на исходном commit $PINNED_COMMIT."
-  fi
+  echo "Найдена незавершённая установка; получаю актуальные исправленные исходники."
 fi
 if (( RESUME_REQUESTED && RESUME_INSTALL == 0 )); then
   echo "Компоненты TSF Connect ещё не создавались; выполняется первичная установка."
