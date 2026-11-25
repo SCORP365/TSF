@@ -13,7 +13,21 @@ command -v systemctl >/dev/null 2>&1 || fail "Требуется systemd."
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-upgrade ca-certificates python3 qrencode
+BOOTSTRAP_PACKAGES=(ca-certificates python3 qrencode)
+APT_PLAN="$(apt-get -s install --no-upgrade --no-install-recommends "${BOOTSTRAP_PACKAGES[@]}")" ||
+  fail "Не удалось рассчитать безопасный план установки инструментов bootstrap."
+while IFS= read -r plan_line; do
+  if [[ "$plan_line" =~ ^Remv[[:space:]]+([^[:space:]]+) ]]; then
+    fail "APT планирует удалить посторонний пакет ${BASH_REMATCH[1]}; bootstrap остановлен."
+  fi
+  if [[ "$plan_line" =~ ^Inst[[:space:]]+([^[:space:]]+) ]]; then
+    planned_package="${BASH_REMATCH[1]%%:*}"
+    planned_status="$(dpkg-query -W -f='${Status}' "$planned_package" 2>/dev/null || true)"
+    [[ "$planned_status" != "install ok installed" ]] ||
+      fail "APT планирует изменить уже установленный пакет $planned_package."
+  fi
+done <<< "$APT_PLAN"
+apt-get install -y --no-upgrade --no-install-recommends "${BOOTSTRAP_PACKAGES[@]}"
 
 WORK="$(mktemp -d /var/tmp/tsf-connect-bootstrap.XXXXXX)"
 chmod 0700 "$WORK"
