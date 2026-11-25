@@ -42,7 +42,40 @@ echo "Получение проверенных исходников из при
 echo "Сейчас появится QR-код и одноразовый код авторизации."
 echo
 
-python3 - "$WORK/source" <<'PY'
+RESUME_INSTALL=0
+RESUME_REQUESTED=0
+[[ "${1:-}" != "--resume" ]] || RESUME_REQUESTED=1
+for marker in \
+  /opt/tsf-connect/.tsf-source-fingerprint \
+  /var/lib/tsf-connect-installer \
+  /var/lib/tsf-connect-portal \
+  /etc/tsf-connect/portal \
+  /etc/systemd/system/tsf-connect-portal.service \
+  /etc/systemd/system/tsf-connect-executor.service \
+  /etc/nginx/sites-available/tsf-connect.conf \
+  /etc/nginx/conf.d/tsf-connect.conf \
+  /usr/local/sbin/tsf-connect \
+  /usr/local/mgr5/addon/tsf-connect-portal.sh; do
+  if [[ -e "$marker" || -L "$marker" ]]; then
+    RESUME_INSTALL=1
+    break
+  fi
+done
+
+PINNED_COMMIT=""
+if (( RESUME_INSTALL )) && [[ ! -f /var/lib/tsf-connect-installer/complete ]]; then
+  if [[ -f /opt/tsf-connect/.tsf-bootstrap-commit && ! -L /opt/tsf-connect/.tsf-bootstrap-commit ]]; then
+    PINNED_COMMIT="$(cat /opt/tsf-connect/.tsf-bootstrap-commit)"
+    [[ "$PINNED_COMMIT" =~ ^[0-9a-f]{40}$ ]] ||
+      fail "Fingerprint bootstrap commit в незавершённой установке повреждён."
+    echo "Найдена незавершённая установка; продолжение будет выполнено на исходном commit $PINNED_COMMIT."
+  fi
+fi
+if (( RESUME_REQUESTED && RESUME_INSTALL == 0 )); then
+  echo "Компоненты TSF Connect ещё не создавались; выполняется первичная установка."
+fi
+
+python3 - "$WORK/source" "$PINNED_COMMIT" <<'PY'
 import base64
 import hashlib
 import json
@@ -58,6 +91,7 @@ import urllib.request
 OWNER = "SCORP365"
 REPO = "TSF-Connect"
 REF = "test/no-ed25519"
+PINNED_COMMIT = sys.argv[2].strip()
 CLIENT_ID = "Iv23liiXhUA7P0zNBVmn"
 API = "https://api.github.com"
 DEVICE_URL = "https://github.com/login/device"
@@ -131,8 +165,13 @@ def api(token, path):
 
 def main():
     token = authorize()
-    ref = api(token, "git/ref/heads/" + urllib.parse.quote(REF, safe="/"))
-    commit_sha = ref.get("object", {}).get("sha")
+    if PINNED_COMMIT:
+        if not __import__("re").fullmatch(r"[0-9a-f]{40}", PINNED_COMMIT):
+            raise RuntimeError("В локальном состоянии указан некорректный commit.")
+        commit_sha = PINNED_COMMIT
+    else:
+        ref = api(token, "git/ref/heads/" + urllib.parse.quote(REF, safe="/"))
+        commit_sha = ref.get("object", {}).get("sha")
     if not isinstance(commit_sha, str) or len(commit_sha) != 40:
         raise RuntimeError("Не удалось определить commit приватного репозитория.")
     commit = api(token, "git/commits/" + commit_sha)
@@ -205,29 +244,6 @@ PY
 echo
 echo "Запускается основной установщик TSF Connect."
 export TSF_BOOTSTRAP_SOURCE="$WORK/source"
-RESUME_INSTALL=0
-RESUME_REQUESTED=0
-[[ "${1:-}" != "--resume" ]] || RESUME_REQUESTED=1
-for marker in \
-  /opt/tsf-connect/.tsf-source-fingerprint \
-  /var/lib/tsf-connect-installer \
-  /var/lib/tsf-connect-portal \
-  /etc/tsf-connect/portal \
-  /etc/systemd/system/tsf-connect-portal.service \
-  /etc/systemd/system/tsf-connect-executor.service \
-  /etc/nginx/sites-available/tsf-connect.conf \
-  /etc/nginx/conf.d/tsf-connect.conf \
-  /usr/local/sbin/tsf-connect \
-  /usr/local/mgr5/addon/tsf-connect-portal.sh; do
-  if [[ -e "$marker" || -L "$marker" ]]; then
-    RESUME_INSTALL=1
-    echo "Обнаружены ранее созданные компоненты TSF Connect; включён безопасный режим продолжения."
-    break
-  fi
-done
-if (( RESUME_REQUESTED && RESUME_INSTALL == 0 )); then
-  echo "Компоненты TSF Connect ещё не создавались; выполняется первичная установка."
-fi
 if (( RESUME_INSTALL )); then
   bash "$WORK/source/installer/install.sh" --resume
 else
