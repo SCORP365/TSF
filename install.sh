@@ -81,6 +81,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -166,7 +167,7 @@ def api(token, path):
 def main():
     token = authorize()
     if PINNED_COMMIT:
-        if not __import__("re").fullmatch(r"[0-9a-f]{40}", PINNED_COMMIT):
+        if not re.fullmatch(r"[0-9a-f]{40}", PINNED_COMMIT):
             raise RuntimeError("В локальном состоянии указан некорректный commit.")
         commit_sha = PINNED_COMMIT
     else:
