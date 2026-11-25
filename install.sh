@@ -191,11 +191,34 @@ PY
 echo
 echo "Запускается основной установщик TSF Connect."
 export TSF_BOOTSTRAP_SOURCE="$WORK/source"
-if [[ "${1:-}" == "--resume" && -d /opt/tsf-connect && -f /opt/tsf-connect/.tsf-source-fingerprint ]]; then
-  bash "$WORK/source/installer/install.sh" --resume
-else
-  if [[ "${1:-}" == "--resume" ]]; then
+RESUME_INSTALL=0
+if [[ "${1:-}" == "--resume" ]]; then
+  if [[ -d /opt/tsf-connect && -f /opt/tsf-connect/.tsf-source-fingerprint ]]; then
+    RESUME_INSTALL=1
+  else
     echo "Исходники ещё не были размещены; установщик безопасно продолжит как первичный запуск."
   fi
+else
+  for marker in \
+    /opt/tsf-connect/.tsf-source-fingerprint \
+    /var/lib/tsf-connect-installer \
+    /var/lib/tsf-connect-portal \
+    /etc/tsf-connect/portal \
+    /etc/systemd/system/tsf-connect-portal.service \
+    /etc/systemd/system/tsf-connect-executor.service \
+    /etc/nginx/sites-available/tsf-connect.conf \
+    /etc/nginx/conf.d/tsf-connect.conf \
+    /usr/local/sbin/tsf-connect \
+    /usr/local/mgr5/addon/tsf-connect-portal.sh; do
+    if [[ -e "$marker" || -L "$marker" ]]; then
+      RESUME_INSTALL=1
+      echo "Обнаружены ранее созданные компоненты TSF Connect; включён безопасный режим продолжения."
+      break
+    fi
+  done
+fi
+if (( RESUME_INSTALL )); then
+  bash "$WORK/source/installer/install.sh" --resume
+else
   bash "$WORK/source/installer/install.sh"
 fi
