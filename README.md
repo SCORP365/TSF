@@ -3,7 +3,7 @@
 На VPS с Ubuntu 24.04 LTS amd64 выполните одну команду от root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/02096bb3b4e5661bf6bd43e6fa5f9c4bac59459d/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
+curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/38073ca248cbc96ef2181818c370ea1302fbb030/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
 ```
 
 Продолжение прерванной установки:
