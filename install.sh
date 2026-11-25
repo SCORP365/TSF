@@ -39,6 +39,8 @@ echo "======================================================"
 echo "          TSF CONNECT — ЕДИНЫЙ УСТАНОВЩИК"
 echo "======================================================"
 echo "Получение проверенных исходников из приватного GitHub."
+echo "Тестовая ветка: work/full-removal-backup-workflow"
+echo "VPS не будет очищаться; существующие службы и данные проверяются установщиком."
 echo "Сейчас появится QR-код и одноразовый код авторизации."
 echo
 
@@ -91,7 +93,7 @@ import urllib.request
 
 OWNER = "SCORP365"
 REPO = "TSF-Connect"
-REF = "test/no-ed25519"
+REF = "work/full-removal-backup-workflow"
 PINNED_COMMIT = sys.argv[2].strip()
 CLIENT_ID = "Iv23liiXhUA7P0zNBVmn"
 API = "https://api.github.com"
