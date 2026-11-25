@@ -1,0 +1,29 @@
+name: Bootstrap validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: bash -n install.sh
+      - name: Check embedded Python syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path("install.sh").read_text(encoding="utf-8")
+          marker = 'python3 - "$WORK/source" "$PINNED_COMMIT" <<\'PY\'\n'
+          start = source.index(marker) + len(marker)
+          end = source.index("\nPY\n", start)
+          compile(source[start:end], "tsf-connect-bootstrap.py", "exec")
+          PY
