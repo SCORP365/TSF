@@ -13,7 +13,7 @@ command -v systemctl >/dev/null 2>&1 || fail "Требуется systemd."
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates python3 qrencode
+apt-get install -y --no-upgrade ca-certificates python3 qrencode
 
 WORK="$(mktemp -d /var/tmp/tsf-connect-bootstrap.XXXXXX)"
 chmod 0700 "$WORK"
