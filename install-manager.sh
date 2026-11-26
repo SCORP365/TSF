@@ -79,48 +79,71 @@ def request(url, method="GET", data=None, token=None, accept="application/vnd.gi
         raise RuntimeError("GitHub вернул некорректный ответ.") from exc
 
 def main():
-    print("\nПервичная настройка менеджера TSF Connect.")
-    print("Сейчас будет выполнена однократная авторизация GitHub Device Flow.")
-    device = request(DEVICE_CODE_URL, "POST", {"client_id": CLIENT_ID, "scope": "repo"},
-                     accept="application/json")
+    token = None
+    if TOKEN_PATH.exists() and not TOKEN_PATH.is_symlink():
+        info = TOKEN_PATH.lstat()
+        if info.st_uid == 0 and info.st_gid == 0 and (info.st_mode & 0o777) == 0o600:
+            candidate = TOKEN_PATH.read_text(encoding="utf-8").strip()
+            if candidate:
+                try:
+                    saved_repo = request(f"{API}/repos/{OWNER}/{REPO}", token=candidate)
+                except RuntimeError as exc:
+                    if not any(f"HTTP {code}" in str(exc) for code in (401, 403, 404)):
+                        raise
+                    saved_repo = {}
+                if saved_repo.get("full_name", "").lower() == f"{OWNER}/{REPO}".lower() and saved_repo.get("private") is True:
+                    token = candidate
+    if token is None:
+        print("\nПервичная настройка менеджера TSF Connect.")
+        print("Сейчас будет выполнена однократная авторизация GitHub Device Flow.")
+        device = request(DEVICE_CODE_URL, "POST", {"client_id": CLIENT_ID, "scope": "repo"},
+                         accept="application/json")
     if device.get("error"):
         raise RuntimeError("GitHub Device Flow: " + str(device.get("error_description") or device["error"]))
-    code = device.get("device_code")
-    user_code = device.get("user_code")
-    verify = device.get("verification_uri")
-    if not isinstance(code, str) or not code or not isinstance(user_code, str) or verify != DEVICE_URL:
-        raise RuntimeError("GitHub вернул некорректные параметры Device Flow.")
-    subprocess.run(["qrencode", "-t", "ANSIUTF8", "-m", "2", verify],
-                   check=True, stdin=subprocess.DEVNULL)
-    print("\nОткройте " + verify)
-    print("Одноразовый код: " + user_code)
-    print("Подтвердите доступ к приватному репозиторию SCORP365/TSF-Connect.")
-    interval = max(5, int(device.get("interval", 5)))
-    deadline = time.monotonic() + int(device.get("expires_in", 900))
-    token = None
-    while time.monotonic() < deadline:
-        time.sleep(interval)
-        result = request(TOKEN_URL, "POST", {
-            "client_id": CLIENT_ID, "device_code": code,
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
-        }, accept="application/json")
-        error = result.get("error")
-        if error == "authorization_pending":
-            continue
-        if error == "slow_down":
-            interval += 5
-            continue
-        if error:
-            raise RuntimeError("GitHub OAuth: " + str(result.get("error_description") or error))
-        token = result.get("access_token")
-        if not isinstance(token, str) or not token or result.get("token_type", "").lower() != "bearer":
-            raise RuntimeError("GitHub не выдал токен доступа.")
-        break
-    if not token:
-        raise RuntimeError("Время действия одноразового кода истекло.")
-    repository = request(f"{API}/repos/{OWNER}/{REPO}", token=token)
-    if repository.get("full_name", "").lower() != f"{OWNER}/{REPO}".lower() or repository.get("private") is not True:
-        raise RuntimeError("Токен не подтвердил доступ к приватному репозиторию TSF Connect.")
+        code = device.get("device_code")
+        user_code = device.get("user_code")
+        verify = device.get("verification_uri")
+        if not isinstance(code, str) or not code or not isinstance(user_code, str) or verify != DEVICE_URL:
+            raise RuntimeError("GitHub вернул некорректные параметры Device Flow.")
+        subprocess.run(["qrencode", "-t", "ANSIUTF8", "-m", "2", verify],
+                       check=True, stdin=subprocess.DEVNULL)
+        print("\nОткройте " + verify)
+        print("Одноразовый код: " + user_code)
+        print("Подтвердите доступ к приватному репозиторию SCORP365/TSF-Connect.")
+        interval = max(5, int(device.get("interval", 5)))
+        deadline = time.monotonic() + int(device.get("expires_in", 900))
+        while time.monotonic() < deadline:
+            time.sleep(interval)
+            result = request(TOKEN_URL, "POST", {
+                "client_id": CLIENT_ID, "device_code": code,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
+            }, accept="application/json")
+            error = result.get("error")
+            if error == "authorization_pending":
+                continue
+            if error == "slow_down":
+                interval += 5
+                continue
+            if error:
+                raise RuntimeError("GitHub OAuth: " + str(result.get("error_description") or error))
+            token = result.get("access_token")
+            if not isinstance(token, str) or not token or result.get("token_type", "").lower() != "bearer":
+                raise RuntimeError("GitHub не выдал токен доступа.")
+            break
+        if not token:
+            raise RuntimeError("Время действия одноразового кода истекло.")
+        repository = request(f"{API}/repos/{OWNER}/{REPO}", token=token)
+        if repository.get("full_name", "").lower() != f"{OWNER}/{REPO}".lower() or repository.get("private") is not True:
+            raise RuntimeError("Токен не подтвердил доступ к приватному репозиторию TSF Connect.")
+        token_tmp = TOKEN_PATH.with_name("github-token.tmp")
+        fd = os.open(token_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(token + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chown(token_tmp, 0, 0)
+        os.chmod(token_tmp, 0o600)
+        os.replace(token_tmp, TOKEN_PATH)
     item = request(f"{API}/repos/{OWNER}/{REPO}/contents/manager/manager.py?ref={urllib.parse.quote(REF)}", token=token)
     if item.get("encoding") != "base64" or not isinstance(item.get("content"), str):
         raise RuntimeError("Не удалось получить отдельный файл менеджера из GitHub.")
@@ -128,15 +151,6 @@ def main():
     expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
     if expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3"):
         raise RuntimeError("Файл менеджера не прошёл проверку Git SHA.")
-    token_tmp = TOKEN_PATH.with_name("github-token.tmp")
-    fd = os.open(token_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
-        stream.write(token + "\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.chown(token_tmp, 0, 0)
-    os.chmod(token_tmp, 0o600)
-    os.replace(token_tmp, TOKEN_PATH)
     manager_tmp = MANAGER_PATH.with_name("manager.py.new")
     fd = os.open(manager_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o750)
     with os.fdopen(fd, "wb") as stream:
