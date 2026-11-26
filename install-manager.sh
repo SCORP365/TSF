@@ -206,7 +206,7 @@ echo "Для открытия меню выполните: tsf-connect"
     fd = os.open(state_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         json.dump(state, stream, ensure_ascii=False, sort_keys=True)
-        stream.write("\\n")
+        stream.write(chr(10))
         stream.flush()
         os.fsync(stream.fileno())
     os.chown(state_tmp, 0, 0)
