@@ -14,14 +14,17 @@ command -v systemctl >/dev/null 2>&1 || fail "Требуется systemd."
 if ! command -v qrencode >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends qrencode
+  apt-get install -y --no-upgrade --no-install-recommends qrencode
 fi
 
 STATE=/var/lib/tsf-connect-manager
 LIB=/usr/local/lib/tsf-connect-manager
 LINK=/usr/local/sbin/tsf-connect
+[[ ! -L "$STATE" && ! -L "$LIB" ]] || fail "Каталог менеджера является символической ссылкой; установка остановлена."
 install -d -o root -g root -m 0700 "$STATE"
 install -d -o root -g root -m 0755 "$LIB"
+[[ "$(stat -c '%U:%G:%a' "$STATE")" == "root:root:700" ]] || fail "Небезопасные права каталога состояния менеджера."
+[[ "$(stat -c '%U:%G:%a' "$LIB")" == "root:root:755" ]] || fail "Небезопасные права каталога менеджера."
 
 if [[ -e "$LINK" || -L "$LINK" ]]; then
   [[ -L "$LINK" && "$(readlink -f "$LINK")" == "$LIB/manager.py" ]] ||
