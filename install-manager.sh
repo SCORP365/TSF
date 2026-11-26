@@ -213,6 +213,17 @@ ln -sfn "$LIB/manager.py" "$LINK"
 chmod 0750 "$LIB/manager.py"
 chown root:root "$LIB/manager.py" "$STATE/github-token"
 chmod 0600 "$STATE/github-token"
+MANAGER_MARKER="$LIB/.tsf-manager-manifest"
+if [[ -e "$MANAGER_MARKER" || -L "$MANAGER_MARKER" ]]; then
+  [[ -f "$MANAGER_MARKER" && ! -L "$MANAGER_MARKER" &&
+     "$(stat -c '%U:%G:%a' "$MANAGER_MARKER")" == "root:root:600" &&
+     "$(cat "$MANAGER_MARKER")" == "TSF_CONNECT_MANAGER_V1" ]] ||
+    fail "Маркер принадлежности менеджера повреждён; он не будет заменён."
+else
+  printf '%s\\n' "TSF_CONNECT_MANAGER_V1" > "$MANAGER_MARKER"
+  chown root:root "$MANAGER_MARKER"
+  chmod 0600 "$MANAGER_MARKER"
+fi
 echo
 echo "Установлен только менеджер TSF Connect."
 echo "Для открытия меню выполните: tsf-connect"
