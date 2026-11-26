@@ -33,10 +33,12 @@ fi
 
 python3 - "$STATE/github-token" "$LIB/manager.py" <<'PY'
 import base64
+import datetime
 import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -146,13 +148,71 @@ def main():
         os.chmod(token_tmp, 0o600)
         os.replace(token_tmp, TOKEN_PATH)
 
-    item = request(f"{API}/repos/{OWNER}/{REPO}/contents/manager/manager.py?ref={urllib.parse.quote(REF)}", token=token)
+    branch_ref = request(
+        f"{API}/repos/{OWNER}/{REPO}/git/ref/heads/{urllib.parse.quote(REF, safe='/')}",
+        token=token,
+    )
+    commit_sha = branch_ref.get("object", {}).get("sha") if isinstance(branch_ref, dict) else None
+    if not isinstance(commit_sha, str) or len(commit_sha) != 40:
+        raise RuntimeError("GitHub не подтвердил версию ветки менеджера.")
+
+    item = request(
+        f"{API}/repos/{OWNER}/{REPO}/contents/manager/manager.py?ref={commit_sha}",
+        token=token,
+    )
     if item.get("encoding") != "base64" or not isinstance(item.get("content"), str):
         raise RuntimeError("Не удалось получить отдельный файл менеджера из GitHub.")
     raw = base64.b64decode("".join(item["content"].split()), validate=True)
     expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
-    if expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3"):
-        raise RuntimeError("Файл менеджера не прошёл проверку Git SHA.")
+    version_match = re.search(rb'^MANAGER_VERSION = "([^"]+)"
+    fd = os.open(manager_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o750)
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chown(manager_tmp, 0, 0)
+    os.chmod(manager_tmp, 0o750)
+    os.replace(manager_tmp, MANAGER_PATH)
+    print("\nМенеджер получен отдельно; остальные файлы проекта не загружались.")
+    print("Авторизация сохранена в защищённом системном каталоге.")
+try:
+    main()
+except Exception as exc:
+    print("ОШИБКА: " + str(exc), file=sys.stderr)
+    sys.exit(1)
+PY
+
+ln -sfn "$LIB/manager.py" "$LINK"
+chmod 0750 "$LIB/manager.py"
+chown root:root "$LIB/manager.py" "$STATE/github-token"
+chmod 0600 "$STATE/github-token" "$STATE/state.json"
+echo
+echo "Установлен только менеджер TSF Connect."
+echo "Для открытия меню выполните: tsf-connect"
+, raw, re.MULTILINE)
+    if (expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3")
+            or version_match is None):
+        raise RuntimeError("Файл менеджера не прошёл проверку Git SHA или версии.")
+
+    state = {
+        "manager_version": version_match.group(1).decode("ascii"),
+        "repository": f"{OWNER}/{REPO}",
+        "branch": REF,
+        "latest_commit": commit_sha,
+        "last_verified_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    state_path = TOKEN_PATH.with_name("state.json")
+    state_tmp = TOKEN_PATH.with_name("state.json.tmp")
+    fd = os.open(state_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(state, stream, ensure_ascii=False, sort_keys=True)
+        stream.write("\\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chown(state_tmp, 0, 0)
+    os.chmod(state_tmp, 0o600)
+    os.replace(state_tmp, state_path)
+
     manager_tmp = MANAGER_PATH.with_name("manager.py.new")
     fd = os.open(manager_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o750)
     with os.fdopen(fd, "wb") as stream:
