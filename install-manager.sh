@@ -150,7 +150,7 @@ def main():
     if item.get("encoding") != "base64" or not isinstance(item.get("content"), str):
         raise RuntimeError("Не удалось получить отдельный файл менеджера из GitHub.")
     raw = base64.b64decode("".join(item["content"].split()), validate=True)
-    expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\\0" + raw).hexdigest()
+    expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
     if expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3"):
         raise RuntimeError("Файл менеджера не прошёл проверку Git SHA.")
     manager_tmp = MANAGER_PATH.with_name("manager.py.new")
