@@ -15,7 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check shell syntax
-        run: bash -n install.sh
+        run: |
+          bash -n install.sh
+          bash -n install-manager.sh
+          bash -n tests/test-manager-bootstrap.sh
+      - name: Validate manager-only bootstrap
+        run: bash tests/test-manager-bootstrap.sh
       - name: Check embedded Python syntax
         run: |
           python3 - <<'PY'
