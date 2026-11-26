@@ -18,6 +18,3 @@ jobs:
           python-version: "3.12"
       - name: Validate bootstrap shell and embedded Python
         run: bash tests/test-manager-bootstrap.sh
-      - name: Validate manager Python
-        run: |
-          python3 -m py_compile <(sed -n '/^MANAGER_VERSION = /p' /dev/null) || true
