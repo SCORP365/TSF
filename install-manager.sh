@@ -217,10 +217,12 @@ MANAGER_MARKER="$LIB/.tsf-manager-manifest"
 if [[ -e "$MANAGER_MARKER" || -L "$MANAGER_MARKER" ]]; then
   [[ -f "$MANAGER_MARKER" && ! -L "$MANAGER_MARKER" &&
      "$(stat -c '%U:%G:%a' "$MANAGER_MARKER")" == "root:root:600" &&
-     "$(cat "$MANAGER_MARKER")" == "TSF_CONNECT_MANAGER_V1" ]] ||
+     ( "$(cat "$MANAGER_MARKER")" == "TSF_CONNECT_MANAGER_V1" ||
+       "$(cat "$MANAGER_MARKER")" == 'TSF_CONNECT_MANAGER_V1\n' ) ]] ||
     fail "Маркер принадлежности менеджера повреждён; он не будет заменён."
+  printf '%s' "TSF_CONNECT_MANAGER_V1" > "$MANAGER_MARKER"
 else
-  printf '%s\\n' "TSF_CONNECT_MANAGER_V1" > "$MANAGER_MARKER"
+  printf '%s' "TSF_CONNECT_MANAGER_V1" > "$MANAGER_MARKER"
   chown root:root "$MANAGER_MARKER"
   chmod 0600 "$MANAGER_MARKER"
 fi
