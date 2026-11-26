@@ -88,7 +88,7 @@ def main():
                 try:
                     saved_repo = request(f"{API}/repos/{OWNER}/{REPO}", token=candidate)
                 except RuntimeError as exc:
-                    if not any(f"HTTP {code}" in str(exc) for code in (401, 403, 404)):
+                    if not any(f"HTTP {code}" in str(exc) for code in (401, 404)):
                         raise
                     saved_repo = {}
                 if saved_repo.get("full_name", "").lower() == f"{OWNER}/{REPO}".lower() and saved_repo.get("private") is True:
