@@ -93,13 +93,14 @@ def main():
                     saved_repo = {}
                 if saved_repo.get("full_name", "").lower() == f"{OWNER}/{REPO}".lower() and saved_repo.get("private") is True:
                     token = candidate
+
     if token is None:
         print("\nПервичная настройка менеджера TSF Connect.")
         print("Сейчас будет выполнена однократная авторизация GitHub Device Flow.")
         device = request(DEVICE_CODE_URL, "POST", {"client_id": CLIENT_ID, "scope": "repo"},
                          accept="application/json")
-    if device.get("error"):
-        raise RuntimeError("GitHub Device Flow: " + str(device.get("error_description") or device["error"]))
+        if device.get("error"):
+            raise RuntimeError("GitHub Device Flow: " + str(device.get("error_description") or device["error"]))
         code = device.get("device_code")
         user_code = device.get("user_code")
         verify = device.get("verification_uri")
@@ -144,11 +145,12 @@ def main():
         os.chown(token_tmp, 0, 0)
         os.chmod(token_tmp, 0o600)
         os.replace(token_tmp, TOKEN_PATH)
+
     item = request(f"{API}/repos/{OWNER}/{REPO}/contents/manager/manager.py?ref={urllib.parse.quote(REF)}", token=token)
     if item.get("encoding") != "base64" or not isinstance(item.get("content"), str):
         raise RuntimeError("Не удалось получить отдельный файл менеджера из GitHub.")
     raw = base64.b64decode("".join(item["content"].split()), validate=True)
-    expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+    expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\\0" + raw).hexdigest()
     if expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3"):
         raise RuntimeError("Файл менеджера не прошёл проверку Git SHA.")
     manager_tmp = MANAGER_PATH.with_name("manager.py.new")
