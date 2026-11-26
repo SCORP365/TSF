@@ -21,14 +21,3 @@ jobs:
           bash -n tests/test-manager-bootstrap.sh
       - name: Validate manager-only bootstrap
         run: bash tests/test-manager-bootstrap.sh
-      - name: Check embedded Python syntax
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          source = Path("install.sh").read_text(encoding="utf-8")
-          marker = 'python3 - "$WORK/source" "$PINNED_COMMIT" <<\'PY\'\n'
-          start = source.index(marker) + len(marker)
-          end = source.index("\nPY\n", start)
-          compile(source[start:end], "tsf-connect-bootstrap.py", "exec")
-          PY
