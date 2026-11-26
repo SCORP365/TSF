@@ -1,22 +1,24 @@
-# TSF Connect — единый установщик
+# TSF Connect — установка менеджера
 
-На VPS с Ubuntu 24.04 LTS amd64 выполните одну команду от root:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/38073ca248cbc96ef2181818c370ea1302fbb030/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
-```
-
-Продолжение прерванной установки:
+На VPS с Ubuntu 24.04 LTS amd64 выполните **одну команду от root**:
 
 ```bash
-bash /root/tsf-connect-install.sh --resume
+curl -fsSL https://raw.githubusercontent.com/SCORP365/TSF/ebf398902b2c4a0468231943936a270e8aaa4329/install.sh -o /root/tsf-connect-install.sh && bash /root/tsf-connect-install.sh
 ```
 
-Bootstrap:
-- устанавливает минимальные инструменты загрузки;
-- выполняет GitHub Device Flow (QR-код и одноразовый код), без PAT;
-- получает исходники приватного репозитория `SCORP365/TSF-Connect`;
-- проверяет SHA-1 каждого Git blob относительно дерева Git;
-- запускает основной серверный установщик из временного каталога и удаляет временные файлы.
+Установщик:
+- устанавливает только автономный менеджер TSF Connect и необходимые ему инструменты;
+- выполняет авторизацию GitHub Device Flow (QR-код и одноразовый код), без PAT;
+- проверяет доступ к приватному репозиторию `SCORP365/TSF-Connect`;
+- загружает и проверяет отдельный файл менеджера по Git SHA;
+- сохраняет авторизацию в защищённом системном каталоге.
 
-Исходники остаются в приватном репозитории. Публичный репозиторий содержит только bootstrap.
+После установки запустите менеджер командой:
+
+```bash
+tsf-connect
+```
+
+**Установка портала, сервера RustDesk и остальных компонентов выполняется только из менеджера.** Этот bootstrap их не устанавливает.
+
+Исходники проекта остаются в приватном репозитории `SCORP365/TSF-Connect`. Публичный репозиторий содержит только bootstrap.
