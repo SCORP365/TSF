@@ -38,7 +38,6 @@ import hashlib
 import json
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import time
@@ -164,38 +163,17 @@ def main():
         raise RuntimeError("Не удалось получить отдельный файл менеджера из GitHub.")
     raw = base64.b64decode("".join(item["content"].split()), validate=True)
     expected = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
-    version_match = re.search(rb'^MANAGER_VERSION = "([^"]+)"
-    fd = os.open(manager_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o750)
-    with os.fdopen(fd, "wb") as stream:
-        stream.write(raw)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.chown(manager_tmp, 0, 0)
-    os.chmod(manager_tmp, 0o750)
-    os.replace(manager_tmp, MANAGER_PATH)
-    print("\nМенеджер получен отдельно; остальные файлы проекта не загружались.")
-    print("Авторизация сохранена в защищённом системном каталоге.")
-try:
-    main()
-except Exception as exc:
-    print("ОШИБКА: " + str(exc), file=sys.stderr)
-    sys.exit(1)
-PY
-
-ln -sfn "$LIB/manager.py" "$LINK"
-chmod 0750 "$LIB/manager.py"
-chown root:root "$LIB/manager.py" "$STATE/github-token"
-chmod 0600 "$STATE/github-token" "$STATE/state.json"
-echo
-echo "Установлен только менеджер TSF Connect."
-echo "Для открытия меню выполните: tsf-connect"
-, raw, re.MULTILINE)
+    version_line = next(
+        (line for line in raw.splitlines() if line.startswith(b'MANAGER_VERSION = "')),
+        None,
+    )
     if (expected != item.get("sha") or not raw.startswith(b"#!/usr/bin/env python3")
-            or version_match is None):
+            or version_line is None or not version_line.endswith(b'"')):
         raise RuntimeError("Файл менеджера не прошёл проверку Git SHA или версии.")
+    manager_version = version_line.split(b'"')[1].decode("ascii")
 
     state = {
-        "manager_version": version_match.group(1).decode("ascii"),
+        "manager_version": manager_version,
         "repository": f"{OWNER}/{REPO}",
         "branch": REF,
         "latest_commit": commit_sha,
